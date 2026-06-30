@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>⚽ Panini WC 2026 — Sticker Scanner</title>
+    <style>
+        :root {
+            --bg:      #0b1a0d;
+            --bg2:     #122015;
+            --bg3:     #1b2e1e;
+            --border:  #283e2b;
+            --text:    #dff0e1;
+            --muted:   #7a9e7d;
+            --gold:    #ffd700;
+            --green:   #4ade80;
+            --red:     #f87171;
+            --blue:    #60a5fa;
+        }
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        html { font-size:16px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            max-width: 520px;
+            margin: 0 auto;
+            padding-bottom: 76px;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            background: var(--bg2);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+        }
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .brand { line-height: 1.2; }
+        .brand-title { font-size: 17px; font-weight: 700; color: var(--gold); }
+        .brand-sub  { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+        .settings-btn {
+            background: var(--bg3); border: 1px solid var(--border);
+            color: var(--muted); width: 36px; height: 36px; border-radius: 9px;
+            cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
+        }
+        .progress-row { display: flex; align-items: center; gap: 10px; }
+        .progress-bar { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), #ff8c42); border-radius: 3px; transition: width .5s; }
+        .progress-label { font-size: 12px; color: var(--muted); white-space: nowrap; min-width: 90px; text-align: right; }
+
+        /* ── BOTTOM NAV ── */
+        .nav {
+            background: var(--bg2); border-top: 1px solid var(--border);
+            position: fixed; bottom: 0; left: 0; right: 0;
+            max-width: 520px; margin: 0 auto;
+            display: flex; z-index: 90;
+        }
+        .nav-btn {
+            flex: 1; background: none; border: none; color: var(--muted);
+            padding: 10px 6px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            font-size: 10px; font-family: inherit; position: relative; transition: color .2s;
+        }
+        .nav-btn.active { color: var(--gold); }
+        .nav-icon { font-size: 21px; }
+        .nav-badge {
+            position: absolute; top: 5px; right: calc(50% - 16px);
+            background: var(--red); color: #fff; font-size: 10px; font-weight: 700;
+            min-width: 17px; height: 17px; border-radius: 9px;
+            display: none; align-items: center; justify-content: center; padding: 0 3px;
+        }
+
+        /* ── PAGE SECTIONS ── */
+        .page { display: none; padding: 16px; }
+        .page.active { display: block; }
+
+        /* ── CARDS ── */
+        .card {
+            background: var(--bg2); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px; margin-bottom: 12px;
+        }
+        .card-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+
+        /* ── CAMERA ── */
+        .camera-wrap {
+            position: relative; background: #000; border-radius: 12px;
+            overflow: hidden; aspect-ratio: 4/3; margin-bottom: 12px;
+        }
+        #camVideo { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .cam-placeholder {
+            width: 100%; height: 100%; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 10px;
+            color: var(--muted); background: var(--bg3); cursor: pointer;
+        }
+        .cam-placeholder-icon { font-size: 52px; }
+        .cam-overlay {
+            position: absolute; inset: 0; pointer-events: none; display: none;
+        }
+        .cam-corner {
+            position: absolute; width: 22px; height: 22px; border-color: var(--gold); border-style: solid;
+        }
+        .cam-corner.tl { top:8px; left:8px; border-width:3px 0 0 3px; }
+        .cam-corner.tr { top:8px; right:8px; border-width:3px 3px 0 0; }
+        .cam-corner.bl { bottom:8px; left:8px; border-width:0 0 3px 3px; }
+        .cam-corner.br { bottom:8px; right:8px; border-width:0 3px 3px 0; }
+        .cam-controls { display: none; justify-content: center; align-items: center; gap: 14px; margin-bottom: 12px; }
+        .capture-btn {
+            width: 70px; height: 70px; border-radius: 50%;
+            background: var(--gold); border: 4px solid rgba(255,215,0,.3);
+            cursor: pointer; font-size: 26px;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform .15s;
+            animation: pulse 2.2s infinite;
+        }
+        .capture-btn:active { transform: scale(.93); }
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(255,215,0,.45); }
+            70%  { box-shadow: 0 0 0 14px rgba(255,215,0,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); }
+        }
+
+        /* ── BUTTONS ── */
+        .btn {
+            border: none; border-radius: 10px; padding: 12px 20px;
+            font-size: 14px; font-weight: 600; cursor: pointer; width: 100%;
+            font-family: inherit; transition: filter .15s, transform .1s; display: inline-flex;
+            align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn:active { transform: scale(.97); }
+        .btn-gold  { background: var(--gold);  color: #000; }
+        .btn-ghost { background: var(--bg3);   color: var(--text); border: 1px solid var(--border); }
+        .btn-red   { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+        .btn-sm    { padding: 8px 14px; font-size: 13px; width: auto; border-radius: 8px; }
+        .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+        /* ── WARNING BANNER ── */
+        .warning-banner {
+            background: rgba(255,215,0,.1); border: 1px solid rgba(255,215,0,.3);
+            border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .warning-banner strong { color: var(--gold); display: block; margin-bottom: 4px; }
+        .warning-banner p { color: var(--muted); }
+
+        /* ── ANALYSIS RESULT ── */
+        .chip-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+        .chip {
+            padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: default;
+        }
+        .chip-miss { background: rgba(248,113,113,.15); color: var(--red);   border: 1px solid rgba(248,113,113,.3); }
+        .chip-have { background: rgba(74,222,128,.13);  color: var(--green); border: 1px solid rgba(74,222,128,.3); }
+        .section-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+        .label-miss { color: var(--red); }
+        .label-have { color: var(--green); }
+
+        /* ── LOADING ── */
+        .loader { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 18px; color: var(--muted); }
+        .spin {
+            width: 22px; height: 22px; border-radius: 50%;
+            border: 3px solid var(--border); border-top-color: var(--gold);
+            animation: spin .75s linear infinite; flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── MANUAL INPUT ── */
+        .input-row { display: flex; gap: 8px; }
+        .num-input {
+            flex: 1; background: var(--bg3); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text); font-size: 15px;
+            padding: 10px 12px; font-family: inherit; outline: none;
+        }
+        .num-input:focus { border-color: var(--gold); }
+        .num-input::placeholder { color: var(--muted); }
+
+        /* ── MISSING LIST ── */
+        .list-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+        }
+        .big-num { font-size: 36px; font-weight: 800; color: var(--red); line-height: 1; }
+        .big-num-label { font-size: 12px; color: var(--muted); }
+
+        .group-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+        .group-head {
+            padding: 12px 14px; display: flex; justify-content: space-between;
+            align-items: center; cursor: pointer; user-select: none;
+        }
+        .group-head:hover { background: var(--bg3); }
+        .group-head-left { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+        .group-badge { background: rgba(248,113,113,.18); color: var(--red); border-radius: 12px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
+        .group-items { display: none; border-top: 1px solid var(--border); }
+        .group-items.open { display: block; }
+
+        .sticker-row {
+            display: flex; align-items: center; padding: 9px 14px;
+            border-bottom: 1px solid var(--border); gap: 10px;
+        }
+        .sticker-row:last-child { border-bottom: none; }
+        .sticker-num {
+            width: 42px; height: 42px; background: var(--bg3); border: 1px solid var(--border);
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px; color: var(--gold); flex-shrink: 0;
+        }
+        .sticker-info { flex: 1; min-width: 0; }
+        .sticker-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sticker-sect { font-size: 11px; color: var(--muted); }
+        .got-btn {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 2px solid var(--border); background: none;
+            cursor: pointer; font-size: 15px; color: var(--muted);
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+            transition: all .2s;
+        }
+        .got-btn:hover { background: rgba(74,222,128,.15); border-color: var(--green); color: var(--green); }
+
+        /* ── HISTORY ── */
+        .hist-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+        .hist-head { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+        .hist-meta { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+        .hist-desc { font-size: 14px; font-weight: 600; }
+        .hist-counts { display: flex; gap: 10px; padding: 10px 14px; }
+        .hist-count { font-size: 13px; }
+        .hist-count.miss { color: var(--red); }
+        .hist-count.have { color: var(--green); }
+
+        /* ── SETTINGS MODAL ── */
+        .overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.8);
+            z-index: 200; display: none; align-items: flex-end; justify-content: center;
+        }
+        .overlay.open { display: flex; }
+        .modal {
+            background: var(--bg2); border-radius: 18px 18px 0 0;
+            padding: 20px 20px 32px; width: 100%; max-width: 520px;
+            border-top: 1px solid var(--border);
+        }
+        .modal-handle { width: 38px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 18px; }
+        .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 18px; }
+        .form-group { margin-bottom: 14px; }
+        .form-label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+        .form-input {
+            width: 100%; background: var(--bg3); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text); font-size: 14px; padding: 10px 12px;
+            font-family: monospace; outline: none;
+        }
+        .form-input:focus { border-color: var(--gold); }
+        .form-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+        .divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed; top: 76px; left: 50%; transform: translateX(-50%) translateY(-12px);
+            background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+            padding: 9px 18px; font-size: 13px; font-weight: 500;
+            z-index: 300; opacity: 0; transition: all .25s; white-space: nowrap; max-width: 88%;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.ok  { border-color: var(--green); color: var(--green); }
+        .toast.err { border-color: var(--red);   color: var(--red); }
+        .toast.inf { border-color: var(--gold);  color: var(--gold); }
+
+        /* ── EMPTY STATE ── */
+        .empty { text-align: center; padding: 44px 20px; color: var(--muted); }
+        .empty-icon { font-size: 52px; margin-bottom: 12px; }
+        .empty-title { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+
+        /* ── UTIL ── */
+        canvas { display: none; }
+        .gap { margin-bottom: 8px; }
+        .row { display: flex; gap: 8px; }
+    </style>
+</head>
+<body>
+
+<!-- ─────────── HEADER ─────────── -->
+<header class="header">
+    <div class="header-row">
+        <div class="brand">
+            <div class="brand-title">⚽ Panini WC 2026</div>
+            <div class="brand-sub">Sticker Scanner</div>
+        </div>
+        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+    </div>
+    <div class="progress-row">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="progress-label" id="progressLabel">0 / 720 (0%)</div>
+    </div>
+</header>
+
+<!-- ─────────── SCANNER PAGE ─────────── -->
+<section id="pageScanner" class="page active">
+
+    <div id="apiWarning" class="warning-banner" style="display:none">
+        <strong>🔑 API Key Required</strong>
+        <p>Tap ⚙️ to add your Anthropic API key and enable AI scanning. You can still add stickers manually below.</p>
+    </div>
+
+    <!-- Camera -->
+    <div class="camera-wrap" id="cameraWrap">
+        <div class="cam-placeholder" id="camPlaceholder" onclick="startCamera()">
+            <div class="cam-placeholder-icon">📷</div>
+            <div style="font-size:14px">Tap to open camera</div>
+        </div>
+        <video id="camVideo" autoplay playsinline></video>
+        <div class="cam-overlay" id="camOverlay">
+            <div class="cam-corner tl"></div>
+            <div class="cam-corner tr"></div>
+            <div class="cam-corner bl"></div>
+            <div class="cam-corner br"></div>
+        </div>
+    </div>
+
+    <!-- Camera controls (visible while live) -->
+    <div class="cam-controls" id="camControls">
+        <button class="btn btn-ghost btn-sm" onclick="flipCamera()">🔄 Flip</button>
+        <button class="capture-btn" onclick="captureFrame()" title="Scan page">📸</button>
+        <button class="btn btn-ghost btn-sm" onclick="stopCamera()">✕ Stop</button>
+    </div>
+
+    <!-- Start camera button (visible when idle) -->
+    <button class="btn btn-gold gap" id="startBtn" onclick="startCamera()">📷 Start Camera</button>
+
+    <!-- Captured image + result -->
+    <div id="resultArea" style="display:none">
+        <img id="capturedImg" style="width:100%; border-radius:12px; margin-bottom:12px; display:block">
+
+        <div id="loadingIndicator" class="loader" style="display:none">
+            <div class="spin"></div>
+            <span>AI is analysing your album page…</span>
+        </div>
+
+        <div id="resultContent"></div>
+
+        <button class="btn btn-ghost" id="scanAgainBtn" onclick="resetToCamera()" style="display:none; margin-top:8px">
+            📷 Scan Another Page
+        </button>
+    </div>
+
+    <!-- Manual input -->
+    <div class="card" style="margin-top:4px">
+        <div class="card-title">✏️ Manual Input</div>
+        <div class="input-row gap">
+            <input type="number" class="num-input" id="missInput" placeholder="Sticker # (e.g. 145)" min="1" max="2000">
+            <button class="btn btn-ghost btn-sm" style="background:rgba(248,113,113,.12); color:var(--red); border-color:rgba(248,113,113,.3)" onclick="addMissing()">+ Missing</button>
+        </div>
+        <div class="input-row">
+            <input type="number" class="num-input" id="gotInput" placeholder="Sticker # you just got" min="1" max="2000">
+            <button class="btn btn-ghost btn-sm" style="background:rgba(74,222,128,.12); color:var(--green); border-color:rgba(74,222,128,.3)" onclick="markGot()">✓ Got it</button>
+        </div>
+    </div>
+</section>
+
+<!-- ─────────── MISSING PAGE ─────────── -->
+<section id="pageMissing" class="page">
+    <div class="list-header">
+        <div>
+            <div class="big-num" id="bigMissCount">0</div>
+            <div class="big-num-label">stickers missing</div>
+        </div>
+        <div class="row">
+            <button class="btn btn-ghost btn-sm" onclick="copyMissingList()">📋 Copy</button>
+            <button class="btn btn-ghost btn-sm" onclick="renderMissing()">↺</button>
+        </div>
+    </div>
+    <div id="missingList"></div>
+    <div id="emptyMissing" class="empty" style="display:none">
+        <div class="empty-icon">🎉</div>
+        <div class="empty-title">Album Complete!</div>
+        <div>No missing stickers — congratulations!</div>
+    </div>
+</section>
+
+<!-- ─────────── HISTORY PAGE ─────────── -->
+<section id="pageHistory" class="page">
+    <div style="margin-bottom:14px">
+        <div style="font-size:16px; font-weight:700; margin-bottom:3px">Scan History</div>
+        <div style="font-size:12px; color:var(--muted)">Pages you've scanned with the camera</div>
+    </div>
+    <div id="historyList"></div>
+    <div id="emptyHistory" class="empty">
+        <div class="empty-icon">📷</div>
+        <div class="empty-title">No Scans Yet</div>
+        <div>Start scanning album pages with the camera</div>
+    </div>
+</section>
+
+<!-- ─────────── BOTTOM NAV ─────────── -->
+<nav class="nav">
+    <button class="nav-btn active" id="navScanner" onclick="switchPage('Scanner', this)">
+        <span class="nav-icon">📷</span>Scanner
+    </button>
+    <button class="nav-btn" id="navMissing" onclick="switchPage('Missing', this)">
+        <span class="nav-icon">📋</span>Missing
+        <span class="nav-badge" id="navBadge"></span>
+    </button>
+    <button class="nav-btn" id="navHistory" onclick="switchPage('History', this)">
+        <span class="nav-icon">🕐</span>History
+    </button>
+</nav>
+
+<!-- ─────────── SETTINGS MODAL ─────────── -->
+<div class="overlay" id="settingsOverlay" onclick="overlayClick(event)">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Settings ⚙️</div>
+
+        <div class="form-group">
+            <label class="form-label">Anthropic API Key</label>
+            <input type="password" class="form-input" id="apiKeyField" placeholder="sk-ant-…">
+            <div class="form-hint">Stored only in your browser's localStorage — never sent anywhere except directly to Anthropic's API.</div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Total Stickers in Album</label>
+            <input type="number" class="form-input" id="totalField" value="720" min="1" max="2000">
+            <div class="form-hint">Check the last sticker number in your physical album and adjust if needed.</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <button class="btn btn-gold gap" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-red gap" onclick="confirmClear()">🗑️ Clear All Data</button>
+        <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
+    </div>
+</div>
+
+<!-- ─────────── TOAST ─────────── -->
+<div class="toast" id="toast"></div>
+
+<!-- hidden canvas for frame capture -->
+<canvas id="cvs"></canvas>
+
+<script>
+// ╔══════════════════════════════════════════════════════╗
+// ║  STATE                                               ║
+// ╚══════════════════════════════════════════════════════╝
+const S = {
+    apiKey:       '',
+    totalStickers: 720,
+    missing: {},   // { "145": { section, description, addedAt } }
+    found:   {},   // { "145": { section, description, foundAt  } }
+    history: [],   // [ { ts, description, missList, foundList } ]
+};
+
+let stream       = null;
+let facingMode   = 'environment';
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  ALBUM STRUCTURE (FIFA World Cup 2026 — approximate) ║
+// ╚══════════════════════════════════════════════════════╝
+const TEAMS = [
+    { name:"Introduction & Trophy", flag:"🏆", count:12 },
+    { name:"Host Stadiums",         flag:"🏟️", count:24 },
+    // CONCACAF — hosts
+    { name:"USA",         flag:"🇺🇸", count:14 },
+    { name:"Canada",      flag:"🇨🇦", count:14 },
+    { name:"Mexico",      flag:"🇲🇽", count:14 },
+    // CONCACAF — qualifiers
+    { name:"Jamaica",     flag:"🇯🇲", count:14 },
+    { name:"Panama",      flag:"🇵🇦", count:14 },
+    { name:"Costa Rica",  flag:"🇨🇷", count:14 },
+    // CONMEBOL
+    { name:"Argentina",   flag:"🇦🇷", count:14 },
+    { name:"Brazil",      flag:"🇧🇷", count:14 },
+    { name:"Colombia",    flag:"🇨🇴", count:14 },
+    { name:"Uruguay",     flag:"🇺🇾", count:14 },
+    { name:"Ecuador",     flag:"🇪🇨", count:14 },
+    { name:"Paraguay",    flag:"🇵🇾", count:14 },
+    // UEFA
+    { name:"Germany",        flag:"🇩🇪", count:14 },
+    { name:"Spain",          flag:"🇪🇸", count:14 },
+    { name:"France",         flag:"🇫🇷", count:14 },
+    { name:"England",        flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", count:14 },
+    { name:"Portugal",       flag:"🇵🇹", count:14 },
+    { name:"Netherlands",    flag:"🇳🇱", count:14 },
+    { name:"Italy",          flag:"🇮🇹", count:14 },
+    { name:"Belgium",        flag:"🇧🇪", count:14 },
+    { name:"Switzerland",    flag:"🇨🇭", count:14 },
+    { name:"Austria",        flag:"🇦🇹", count:14 },
+    { name:"Denmark",        flag:"🇩🇰", count:14 },
+    { name:"Serbia",         flag:"🇷🇸", count:14 },
+    { name:"Croatia",        flag:"🇭🇷", count:14 },
+    { name:"Turkey",         flag:"🇹🇷", count:14 },
+    { name:"Czech Republic", flag:"🇨🇿", count:14 },
+    { name:"Slovakia",       flag:"🇸🇰", count:14 },
+    { name:"Albania",        flag:"🇦🇱", count:14 },
+    { name:"Greece",         flag:"🇬🇷", count:14 },
+    // AFC
+    { name:"Japan",        flag:"🇯🇵", count:14 },
+    { name:"South Korea",  flag:"🇰🇷", count:14 },
+    { name:"Iran",         flag:"🇮🇷", count:14 },
+    { name:"Saudi Arabia", flag:"🇸🇦", count:14 },
+    { name:"Australia",    flag:"🇦🇺", count:14 },
+    { name:"Iraq",         flag:"🇮🇶", count:14 },
+    { name:"Jordan",       flag:"🇯🇴", count:14 },
+    { name:"Uzbekistan",   flag:"🇺🇿", count:14 },
+    // CAF
+    { name:"Morocco",        flag:"🇲🇦", count:14 },
+    { name:"Senegal",        flag:"🇸🇳", count:14 },
+    { name:"Nigeria",        flag:"🇳🇬", count:14 },
+    { name:"Cameroon",       flag:"🇨🇲", count:14 },
+    { name:"Egypt",          flag:"🇪🇬", count:14 },
+    { name:"Côte d'Ivoire",  flag:"🇨🇮", count:14 },
+    { name:"Ghana",          flag:"🇬🇭", count:14 },
+    { name:"South Africa",   flag:"🇿🇦", count:14 },
+    { name:"DR Congo",       flag:"🇨🇩", count:14 },
+    // OFC + playoff
+    { name:"New Zealand",    flag:"🇳🇿", count:14 },
+    { name:"Qualifier (Playoff)", flag:"🌍", count:14 },
+];
+
+// Build section lookup: number → { name, flag }
+const SECTIONS = (() => {
+    const map = {};
+    let n = 1;
+    for (const t of TEAMS) {
+        for (let i = 0; i < t.count; i++) {
+            map[n++] = { name: t.name, flag: t.flag };
+        }
+    }
+    // anything beyond the last team section
+    const last = n;
+    for (let i = last; i <= 2000; i++) {
+        map[i] = { name: 'Special / Foil', flag: '✨' };
+    }
+    return map;
+})();
+
+function sectionOf(num) {
+    return SECTIONS[num] || { name: 'Unknown Section', flag: '❓' };
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  PERSISTENCE                                         ║
+// ╚══════════════════════════════════════════════════════╝
+function load() {
+    try {
+        const d = JSON.parse(localStorage.getItem('panini2026v2') || '{}');
+        S.apiKey        = d.apiKey || '';
+        S.totalStickers = d.total  || 720;
+        S.missing       = d.missing || {};
+        S.found         = d.found   || {};
+        S.history       = d.history || [];
+    } catch(e) { /* fresh start */ }
+}
+function save() {
+    try {
+        localStorage.setItem('panini2026v2', JSON.stringify({
+            apiKey:  S.apiKey,
+            total:   S.totalStickers,
+            missing: S.missing,
+            found:   S.found,
+            history: S.history.slice(0, 50),
+        }));
+    } catch(e) { toast('Storage full — some data may not save', 'err'); }
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  UI HELPERS                                          ║
+// ╚══════════════════════════════════════════════════════╝
+function updateProgress() {
+    const foundCount = Object.keys(S.found).length;
+    const pct = S.totalStickers > 0 ? Math.round(foundCount / S.totalStickers * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = `${foundCount} / ${S.totalStickers} (${pct}%)`;
+}
+
+function updateBadge() {
+    const n = Object.keys(S.missing).length;
+    const b = document.getElementById('navBadge');
+    document.getElementById('bigMissCount').textContent = n;
+    if (n > 0) { b.style.display = 'flex'; b.textContent = n > 99 ? '99+' : n; }
+    else        { b.style.display = 'none'; }
+}
+
+let toastTimer;
+function toast(msg, type = 'ok') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function switchPage(name, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'Missing') renderMissing();
+    if (name === 'History') renderHistory();
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  CAMERA                                              ║
+// ╚══════════════════════════════════════════════════════╝
+async function startCamera() {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        });
+        const v = document.getElementById('camVideo');
+        v.srcObject = stream;
+        v.style.display = 'block';
+        document.getElementById('camPlaceholder').style.display = 'none';
+        document.getElementById('camOverlay').style.display  = 'block';
+        document.getElementById('camControls').style.display = 'flex';
+        document.getElementById('startBtn').style.display    = 'none';
+        document.getElementById('resultArea').style.display  = 'none';
+    } catch(e) {
+        toast('Camera access denied — use manual input', 'err');
+    }
+}
+
+function stopCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    const v = document.getElementById('camVideo');
+    v.style.display  = 'none'; v.srcObject = null;
+    document.getElementById('camPlaceholder').style.display = 'flex';
+    document.getElementById('camOverlay').style.display     = 'none';
+    document.getElementById('camControls').style.display    = 'none';
+    document.getElementById('startBtn').style.display       = 'block';
+}
+
+async function flipCamera() {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    stopCamera(); await startCamera();
+}
+
+function captureFrame() {
+    const v = document.getElementById('camVideo');
+    const cvs = document.getElementById('cvs');
+    cvs.width  = v.videoWidth;
+    cvs.height = v.videoHeight;
+    cvs.getContext('2d').drawImage(v, 0, 0);
+    const dataUrl = cvs.toDataURL('image/jpeg', 0.88);
+    const b64     = dataUrl.split(',')[1];
+
+    document.getElementById('capturedImg').src = dataUrl;
+    document.getElementById('resultArea').style.display  = 'block';
+    document.getElementById('scanAgainBtn').style.display = 'none';
+    document.getElementById('resultContent').innerHTML   = '';
+    stopCamera();
+    analyseImage(b64, dataUrl);
+}
+
+function resetToCamera() {
+    document.getElementById('resultArea').style.display = 'none';
+    startCamera();
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  AI ANALYSIS                                         ║
+// ╚══════════════════════════════════════════════════════╝
+async function analyseImage(b64, dataUrl) {
+    const loading = document.getElementById('loadingIndicator');
+    const content = document.getElementById('resultContent');
+
+    if (!S.apiKey) {
+        content.innerHTML = `<div class="card">
+            <div class="card-title">⚠️ API Key Missing</div>
+            <p style="font-size:13px;color:var(--muted)">Open ⚙️ Settings to add your Anthropic API key. Until then you can add missing stickers manually below.</p>
+        </div>`;
+        document.getElementById('scanAgainBtn').style.display = 'block';
+        return;
+    }
+
+    loading.style.display = 'flex';
+
+    try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type':  'application/json',
+                'x-api-key':     S.apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+            },
+            body: JSON.stringify({
+                model: 'claude-opus-4-8',
+                max_tokens: 1800,
+                messages: [{
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'image',
+                            source: { type: 'base64', media_type: 'image/jpeg', data: b64 }
+                        },
+                        {
+                            type: 'text',
+                            text: `You are analysing a page from a Panini FIFA World Cup 2026 sticker album.
+
+Look carefully at every sticker slot on this page and identify:
+1. EMPTY slots — blank spaces where a sticker should be but is missing
+2. FILLED slots — slots that already have a sticker in them
+3. The sticker NUMBER for each slot (usually printed below, above, or beside the slot frame)
+4. The player name or description visible on filled stickers, if legible
+
+Return ONLY valid JSON — no markdown, no prose, no code blocks — with exactly this structure:
+{
+  "pageDescription": "Short description of which team/section this page covers",
+  "missingStickers": [
+    { "number": 123, "description": "Player / sticker description if visible, else empty string" }
+  ],
+  "foundStickers": [
+    { "number": 124, "description": "Player / sticker description if visible, else empty string" }
+  ],
+  "notes": "Optional observation about image quality or anything unusual"
+}
+
+If a number is unreadable use 0.  If this is not a sticker album page return { "error": "Not a sticker album page" }.`
+                        }
+                    ]
+                }]
+            })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error?.message || `HTTP ${res.status}`);
+        }
+
+        const data  = await res.json();
+        const raw   = (data.content?.[0]?.text || '').trim();
+        // Strip markdown code fences if present
+        const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+        let result;
+        try { result = JSON.parse(clean); }
+        catch(e) { throw new Error('Could not parse AI response — try again'); }
+
+        if (result.error) {
+            content.innerHTML = `<div class="card">
+                <div class="card-title">⚠️ Not Recognised</div>
+                <p style="font-size:13px;color:var(--muted)">${result.error}. Try pointing at a page with sticker slots clearly visible.</p>
+            </div>`;
+        } else {
+            displayResult(result, dataUrl);
+        }
+
+    } catch(e) {
+        content.innerHTML = `<div class="card">
+            <div class="card-title" style="color:var(--red)">❌ Analysis Failed</div>
+            <p style="font-size:13px;color:var(--muted)">${e.message}</p>
+            <p style="font-size:12px;color:var(--muted);margin-top:6px">Check your API key in ⚙️ Settings and your internet connection.</p>
+        </div>`;
+    } finally {
+        loading.style.display = 'none';
+        document.getElementById('scanAgainBtn').style.display = 'block';
+    }
+}
+
+function displayResult(result, dataUrl) {
+    const missing = (result.missingStickers || []).filter(s => s.number > 0);
+    const found   = (result.foundStickers   || []).filter(s => s.number > 0);
+
+    // Update state
+    const newMiss = [];
+    missing.forEach(s => {
+        const k = String(s.number);
+        if (!S.found[k]) {
+            if (!S.missing[k]) newMiss.push(s.number);
+            S.missing[k] = { section: sectionOf(s.number).name, description: s.description || '', addedAt: Date.now() };
+        }
+    });
+    found.forEach(s => {
+        const k = String(s.number);
+        S.found[k] = { section: sectionOf(s.number).name, description: s.description || '', foundAt: Date.now() };
+        delete S.missing[k];
+    });
+
+    // History entry
+    S.history.unshift({
+        ts:          new Date().toISOString(),
+        description: result.pageDescription || 'Album page',
+        missList:    missing.map(s => s.number),
+        foundList:   found.map(s => s.number),
+    });
+
+    save();
+    updateProgress();
+    updateBadge();
+
+    // Build HTML
+    const content = document.getElementById('resultContent');
+    let html = `<div class="card">
+        <div class="card-title">📖 ${result.pageDescription || 'Album Page'}</div>`;
+
+    if (result.notes) html += `<p style="font-size:12px;color:var(--muted);margin-bottom:8px">${result.notes}</p>`;
+
+    if (missing.length > 0) {
+        html += `<div class="section-label label-miss">❌ Missing (${missing.length})</div>
+        <div class="chip-row">
+            ${missing.map(s => `<span class="chip chip-miss" title="${s.description}">#${s.number}</span>`).join('')}
+        </div>`;
+    }
+
+    if (found.length > 0) {
+        html += `<div class="section-label label-have" style="margin-top:${missing.length?10:0}px">✅ Collected (${found.length})</div>
+        <div class="chip-row">
+            ${found.map(s => `<span class="chip chip-have" title="${s.description}">#${s.number}</span>`).join('')}
+        </div>`;
+    }
+
+    if (!missing.length && !found.length) {
+        html += `<p style="font-size:13px;color:var(--muted)">No sticker numbers detected. Try a clearer photo with good lighting.</p>`;
+    }
+
+    html += '</div>';
+    content.innerHTML = html;
+
+    if (newMiss.length > 0) toast(`${newMiss.length} missing sticker${newMiss.length>1?'s':''} added to your list`, 'inf');
+    else if (found.length > 0) toast(`${found.length} sticker${found.length>1?'s':''} marked as collected!`, 'ok');
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  MANUAL INPUT                                        ║
+// ╚══════════════════════════════════════════════════════╝
+function addMissing() {
+    const v = parseInt(document.getElementById('missInput').value);
+    if (!v || v < 1) { toast('Enter a valid sticker number', 'err'); return; }
+    const k = String(v);
+    if (S.missing[k]) { toast(`#${v} already in missing list`, 'inf'); }
+    else if (S.found[k]) { toast(`#${v} is already in your collection`, 'inf'); }
+    else {
+        S.missing[k] = { section: sectionOf(v).name, description: '', addedAt: Date.now() };
+        save(); updateProgress(); updateBadge();
+        toast(`Sticker #${v} added to missing list`, 'inf');
+    }
+    document.getElementById('missInput').value = '';
+}
+
+function markGot() {
+    const v = parseInt(document.getElementById('gotInput').value);
+    if (!v || v < 1) { toast('Enter a valid sticker number', 'err'); return; }
+    doMarkFound(v);
+    document.getElementById('gotInput').value = '';
+}
+
+function doMarkFound(num) {
+    const k = String(num);
+    const sec = sectionOf(num);
+    S.found[k] = { section: sec.name, description: S.missing[k]?.description || '', foundAt: Date.now() };
+    delete S.missing[k];
+    save(); updateProgress(); updateBadge();
+    renderMissing();
+    toast(`Sticker #${num} — got it! 🎉`, 'ok');
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  MISSING LIST RENDER                                 ║
+// ╚══════════════════════════════════════════════════════╝
+function renderMissing() {
+    const container = document.getElementById('missingList');
+    const empty     = document.getElementById('emptyMissing');
+    updateBadge();
+
+    const keys = Object.keys(S.missing);
+    if (keys.length === 0) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    // Group by section
+    const groups = {};
+    keys.map(k => parseInt(k)).sort((a,b)=>a-b).forEach(num => {
+        const sec = S.missing[String(num)]?.section || sectionOf(num).name;
+        const flag = sectionOf(num).flag;
+        if (!groups[sec]) groups[sec] = { flag, stickers: [] };
+        groups[sec].stickers.push(num);
+    });
+
+    container.innerHTML = Object.entries(groups).map(([sec, g]) => `
+        <div class="group-card">
+            <div class="group-head" onclick="this.nextElementSibling.classList.toggle('open')">
+                <div class="group-head-left">${g.flag} ${sec}</div>
+                <span class="group-badge">${g.stickers.length}</span>
+            </div>
+            <div class="group-items open">
+                ${g.stickers.map(num => {
+                    const meta = S.missing[String(num)] || {};
+                    return `<div class="sticker-row">
+                        <div class="sticker-num">#${num}</div>
+                        <div class="sticker-info">
+                            <div class="sticker-name">${meta.description || sec + ' sticker'}</div>
+                            <div class="sticker-sect">${sec}</div>
+                        </div>
+                        <button class="got-btn" onclick="doMarkFound(${num})" title="Mark as found">✓</button>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function copyMissingList() {
+    const nums = Object.keys(S.missing).map(Number).sort((a,b)=>a-b);
+    if (nums.length === 0) { toast('No missing stickers to copy', 'inf'); return; }
+    const text = `Panini WC 2026 — Missing stickers (${nums.length}):\n${nums.join(', ')}`;
+    navigator.clipboard.writeText(text).then(
+        () => toast('Copied to clipboard!', 'ok'),
+        () => toast('Copy failed — try again', 'err')
+    );
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  HISTORY RENDER                                      ║
+// ╚══════════════════════════════════════════════════════╝
+function renderHistory() {
+    const list  = document.getElementById('historyList');
+    const empty = document.getElementById('emptyHistory');
+    if (S.history.length === 0) { list.innerHTML=''; empty.style.display='block'; return; }
+    empty.style.display = 'none';
+    list.innerHTML = S.history.map(h => {
+        const d   = new Date(h.ts);
+        const fmt = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        return `<div class="hist-card">
+            <div class="hist-head">
+                <div class="hist-meta">${fmt}</div>
+                <div class="hist-desc">${h.description}</div>
+            </div>
+            <div class="hist-counts">
+                <span class="hist-count miss">❌ ${h.missList.length} missing</span>
+                <span class="hist-count have">✅ ${h.foundList.length} collected</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  SETTINGS                                            ║
+// ╚══════════════════════════════════════════════════════╝
+function openSettings() {
+    document.getElementById('apiKeyField').value = S.apiKey;
+    document.getElementById('totalField').value  = S.totalStickers;
+    document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings() { document.getElementById('settingsOverlay').classList.remove('open'); }
+function overlayClick(e) { if (e.target === e.currentTarget) closeSettings(); }
+
+function saveSettings() {
+    const key   = document.getElementById('apiKeyField').value.trim();
+    const total = parseInt(document.getElementById('totalField').value) || 720;
+    S.apiKey        = key;
+    S.totalStickers = total;
+    save();
+    updateProgress();
+    document.getElementById('apiWarning').style.display = key ? 'none' : 'block';
+    closeSettings();
+    toast('Settings saved', 'ok');
+}
+
+function confirmClear() {
+    if (!confirm('Clear ALL data — missing list, collection, and scan history? This cannot be undone.')) return;
+    S.missing = {}; S.found = {}; S.history = [];
+    save(); updateProgress(); updateBadge(); renderMissing(); renderHistory();
+    closeSettings();
+    toast('All data cleared', 'ok');
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  KEYBOARD SHORTCUTS (manual inputs)                  ║
+// ╚══════════════════════════════════════════════════════╝
+document.getElementById('missInput').addEventListener('keypress', e => { if(e.key==='Enter') addMissing(); });
+document.getElementById('gotInput').addEventListener('keypress',  e => { if(e.key==='Enter') markGot(); });
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  BOOT                                                ║
+// ╚══════════════════════════════════════════════════════╝
+load();
+updateProgress();
+updateBadge();
+if (!S.apiKey) document.getElementById('apiWarning').style.display = 'block';
+</script>
+</body>
+</html>
