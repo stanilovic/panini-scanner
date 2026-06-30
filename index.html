@@ -464,62 +464,66 @@ let facingMode   = 'environment';
 const FWC_SECTION = { name:"FIFA World Cup", flag:"🏆", code:"FWC", count:19 };
 
 const TEAMS = [
-    // CONCACAF — hosts
-    { name:"USA",         flag:"🇺🇸", code:"USA", count:20 },
-    { name:"Canada",      flag:"🇨🇦", code:"CAN", count:20 },
-    { name:"Mexico",      flag:"🇲🇽", code:"MEX", count:20 },
-    // CONCACAF — qualifiers
-    { name:"Jamaica",     flag:"🇯🇲", code:"JAM", count:20 },
-    { name:"Panama",      flag:"🇵🇦", code:"PAN", count:20 },
-    { name:"Costa Rica",  flag:"🇨🇷", code:"CRC", count:20 },
-    // CONMEBOL
-    { name:"Argentina",   flag:"🇦🇷", code:"ARG", count:20 },
-    { name:"Brazil",      flag:"🇧🇷", code:"BRA", count:20 },
-    { name:"Colombia",    flag:"🇨🇴", code:"COL", count:20 },
-    { name:"Uruguay",     flag:"🇺🇾", code:"URU", count:20 },
-    { name:"Ecuador",     flag:"🇪🇨", code:"ECU", count:20 },
-    { name:"Paraguay",    flag:"🇵🇾", code:"PAR", count:20 },
-    // UEFA
-    { name:"Germany",        flag:"🇩🇪", code:"GER", count:20 },
-    { name:"Spain",          flag:"🇪🇸", code:"ESP", count:20 },
-    { name:"France",         flag:"🇫🇷", code:"FRA", count:20 },
-    { name:"England",        flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", code:"ENG", count:20 },
-    { name:"Portugal",       flag:"🇵🇹", code:"POR", count:20 },
-    { name:"Netherlands",    flag:"🇳🇱", code:"NED", count:20 },
-    { name:"Italy",          flag:"🇮🇹", code:"ITA", count:20 },
-    { name:"Belgium",        flag:"🇧🇪", code:"BEL", count:20 },
-    { name:"Switzerland",    flag:"🇨🇭", code:"SUI", count:20 },
-    { name:"Austria",        flag:"🇦🇹", code:"AUT", count:20 },
-    { name:"Denmark",        flag:"🇩🇰", code:"DEN", count:20 },
-    { name:"Serbia",         flag:"🇷🇸", code:"SRB", count:20 },
-    { name:"Croatia",        flag:"🇭🇷", code:"CRO", count:20 },
-    { name:"Turkey",         flag:"🇹🇷", code:"TUR", count:20 },
-    { name:"Czech Republic", flag:"🇨🇿", code:"CZE", count:20 },
-    { name:"Slovakia",       flag:"🇸🇰", code:"SVK", count:20 },
-    { name:"Albania",        flag:"🇦🇱", code:"ALB", count:20 },
-    { name:"Greece",         flag:"🇬🇷", code:"GRE", count:20 },
-    // AFC
-    { name:"Japan",        flag:"🇯🇵", code:"JPN", count:20 },
-    { name:"South Korea",  flag:"🇰🇷", code:"KOR", count:20 },
-    { name:"Iran",         flag:"🇮🇷", code:"IRN", count:20 },
-    { name:"Saudi Arabia", flag:"🇸🇦", code:"KSA", count:20 },
-    { name:"Australia",    flag:"🇦🇺", code:"AUS", count:20 },
-    { name:"Iraq",         flag:"🇮🇶", code:"IRQ", count:20 },
-    { name:"Jordan",       flag:"🇯🇴", code:"JOR", count:20 },
-    { name:"Uzbekistan",   flag:"🇺🇿", code:"UZB", count:20 },
-    // CAF
-    { name:"Morocco",        flag:"🇲🇦", code:"MAR", count:20 },
-    { name:"Senegal",        flag:"🇸🇳", code:"SEN", count:20 },
-    { name:"Nigeria",        flag:"🇳🇬", code:"NGA", count:20 },
-    { name:"Cameroon",       flag:"🇨🇲", code:"CMR", count:20 },
-    { name:"Egypt",          flag:"🇪🇬", code:"EGY", count:20 },
-    { name:"Côte d'Ivoire",  flag:"🇨🇮", code:"CIV", count:20 },
-    { name:"Ghana",          flag:"🇬🇭", code:"GHA", count:20 },
-    { name:"South Africa",   flag:"🇿🇦", code:"RSA", count:20 },
-    { name:"DR Congo",       flag:"🇨🇩", code:"COD", count:20 },
-    // OFC + playoff
-    { name:"New Zealand",    flag:"🇳🇿", code:"NZL", count:20 },
-    { name:"Qualifier (Playoff)", flag:"🌍", code:"PLY", count:20 },
+    // Group A
+    { name:"Mexico",              flag:"🇲🇽", code:"MEX", count:20 },
+    { name:"South Africa",        flag:"🇿🇦", code:"RSA", count:20 },
+    { name:"Korea Republic",      flag:"🇰🇷", code:"KOR", count:20 },
+    { name:"Czechia",             flag:"🇨🇿", code:"CZE", count:20 },
+    // Group B
+    { name:"Canada",              flag:"🇨🇦", code:"CAN", count:20 },
+    { name:"Bosnia-Herzegovina",  flag:"🇧🇦", code:"BIH", count:20 },
+    { name:"Qatar",               flag:"🇶🇦", code:"QAT", count:20 },
+    { name:"Switzerland",         flag:"🇨🇭", code:"SUI", count:20 },
+    // Group C
+    { name:"Brazil",              flag:"🇧🇷", code:"BRA", count:20 },
+    { name:"Morocco",             flag:"🇲🇦", code:"MAR", count:20 },
+    { name:"Haiti",               flag:"🇭🇹", code:"HAI", count:20 },
+    { name:"Scotland",            flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", code:"SCO", count:20 },
+    // Group D
+    { name:"USA",                 flag:"🇺🇸", code:"USA", count:20 },
+    { name:"Paraguay",            flag:"🇵🇾", code:"PAR", count:20 },
+    { name:"Australia",           flag:"🇦🇺", code:"AUS", count:20 },
+    { name:"Türkiye",             flag:"🇹🇷", code:"TUR", count:20 },
+    // Group E
+    { name:"Germany",             flag:"🇩🇪", code:"GER", count:20 },
+    { name:"Curaçao",             flag:"🇨🇼", code:"CUW", count:20 },
+    { name:"Côte d'Ivoire",       flag:"🇨🇮", code:"CIV", count:20 },
+    { name:"Ecuador",             flag:"🇪🇨", code:"ECU", count:20 },
+    // Group F
+    { name:"Netherlands",         flag:"🇳🇱", code:"NED", count:20 },
+    { name:"Japan",               flag:"🇯🇵", code:"JPN", count:20 },
+    { name:"Sweden",              flag:"🇸🇪", code:"SWE", count:20 },
+    { name:"Tunisia",             flag:"🇹🇳", code:"TUN", count:20 },
+    // Group G
+    { name:"Belgium",             flag:"🇧🇪", code:"BEL", count:20 },
+    { name:"Egypt",               flag:"🇪🇬", code:"EGY", count:20 },
+    { name:"IR Iran",             flag:"🇮🇷", code:"IRN", count:20 },
+    { name:"New Zealand",         flag:"🇳🇿", code:"NZL", count:20 },
+    // Group H
+    { name:"Spain",               flag:"🇪🇸", code:"ESP", count:20 },
+    { name:"Cabo Verde",          flag:"🇨🇻", code:"CPV", count:20 },
+    { name:"Saudi Arabia",        flag:"🇸🇦", code:"KSA", count:20 },
+    { name:"Uruguay",             flag:"🇺🇾", code:"URU", count:20 },
+    // Group I
+    { name:"France",              flag:"🇫🇷", code:"FRA", count:20 },
+    { name:"Senegal",             flag:"🇸🇳", code:"SEN", count:20 },
+    { name:"Iraq",                flag:"🇮🇶", code:"IRQ", count:20 },
+    { name:"Norway",              flag:"🇳🇴", code:"NOR", count:20 },
+    // Group J
+    { name:"Argentina",           flag:"🇦🇷", code:"ARG", count:20 },
+    { name:"Algeria",             flag:"🇩🇿", code:"ALG", count:20 },
+    { name:"Austria",             flag:"🇦🇹", code:"AUT", count:20 },
+    { name:"Jordan",              flag:"🇯🇴", code:"JOR", count:20 },
+    // Group K
+    { name:"Portugal",            flag:"🇵🇹", code:"POR", count:20 },
+    { name:"Congo DR",            flag:"🇨🇩", code:"COD", count:20 },
+    { name:"Uzbekistan",          flag:"🇺🇿", code:"UZB", count:20 },
+    { name:"Colombia",            flag:"🇨🇴", code:"COL", count:20 },
+    // Group L
+    { name:"England",             flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", code:"ENG", count:20 },
+    { name:"Croatia",             flag:"🇭🇷", code:"CRO", count:20 },
+    { name:"Ghana",               flag:"🇬🇭", code:"GHA", count:20 },
+    { name:"Panama",              flag:"🇵🇦", code:"PAN", count:20 },
 ];
 
 const ALL_SECTIONS = [FWC_SECTION, ...TEAMS];
