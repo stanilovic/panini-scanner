@@ -205,9 +205,9 @@
         }
         .sticker-row:last-child { border-bottom: none; }
         .sticker-num {
-            width: 42px; height: 42px; background: var(--bg3); border: 1px solid var(--border);
+            min-width: 42px; height: 42px; padding: 0 6px; background: var(--bg3); border: 1px solid var(--border);
             border-radius: 8px; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 12px; color: var(--gold); flex-shrink: 0;
+            font-weight: 700; font-size: 11px; color: var(--gold); flex-shrink: 0; white-space: nowrap;
         }
         .sticker-info { flex: 1; min-width: 0; }
         .sticker-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -348,13 +348,16 @@
     <div class="card" style="margin-top:4px">
         <div class="card-title">✏️ Manual Input</div>
         <div class="input-row gap">
-            <input type="number" class="num-input" id="missInput" placeholder="Sticker # (e.g. 145)" min="1" max="2000">
+            <input type="text" class="num-input" id="missCode" placeholder="Code (e.g. RSA)" maxlength="3" style="flex:0 0 90px; text-transform:uppercase" list="codeList">
+            <input type="number" class="num-input" id="missNum" placeholder="# (1-20)" min="1" max="20">
             <button class="btn btn-ghost btn-sm" style="background:rgba(248,113,113,.12); color:var(--red); border-color:rgba(248,113,113,.3)" onclick="addMissing()">+ Missing</button>
         </div>
         <div class="input-row">
-            <input type="number" class="num-input" id="gotInput" placeholder="Sticker # you just got" min="1" max="2000">
+            <input type="text" class="num-input" id="gotCode" placeholder="Code (e.g. RSA)" maxlength="3" style="flex:0 0 90px; text-transform:uppercase" list="codeList">
+            <input type="number" class="num-input" id="gotNum" placeholder="# (1-20)" min="1" max="20">
             <button class="btn btn-ghost btn-sm" style="background:rgba(74,222,128,.12); color:var(--green); border-color:rgba(74,222,128,.3)" onclick="markGot()">✓ Got it</button>
         </div>
+        <datalist id="codeList"></datalist>
     </div>
 </section>
 
@@ -419,9 +422,9 @@
         </div>
 
         <div class="form-group">
-            <label class="form-label">Total Stickers in Album</label>
-            <input type="number" class="form-input" id="totalField" value="720" min="1" max="2000">
-            <div class="form-hint">Check the last sticker number in your physical album and adjust if needed.</div>
+            <label class="form-label">Album Size</label>
+            <div class="form-input" style="color:var(--muted)" id="totalDisplay">—</div>
+            <div class="form-hint">Computed from the album structure: each team is CODE 1–20, plus FWC 1–19 for the trophy/intro/stadium stickers.</div>
         </div>
 
         <div class="divider"></div>
@@ -444,98 +447,102 @@
 // ╚══════════════════════════════════════════════════════╝
 const S = {
     apiKey:       '',
-    totalStickers: 720,
-    missing: {},   // { "145": { section, description, addedAt } }
-    found:   {},   // { "145": { section, description, foundAt  } }
-    history: [],   // [ { ts, description, missList, foundList } ]
+    missing: {},   // { "RSA-15": { code, num, section, description, addedAt } }
+    found:   {},   // { "RSA-15": { code, num, section, description, foundAt  } }
+    history: [],   // [ { ts, description, missList, foundList } ]  -- lists of "CODE-NUM" keys
 };
 
 let stream       = null;
 let facingMode   = 'environment';
 
 // ╔══════════════════════════════════════════════════════╗
-// ║  ALBUM STRUCTURE (FIFA World Cup 2026 — approximate) ║
+// ║  ALBUM STRUCTURE (FIFA World Cup 2026)               ║
+// ║  Every sticker is identified by a 3-letter country   ║
+// ║  code + a number (1-20 per team). Non-team stickers  ║
+// ║  (trophy/intro/stadiums) use code "FWC", numbers 1-19║
 // ╚══════════════════════════════════════════════════════╝
+const FWC_SECTION = { name:"FIFA World Cup", flag:"🏆", code:"FWC", count:19 };
+
 const TEAMS = [
-    { name:"Introduction & Trophy", flag:"🏆", count:12 },
-    { name:"Host Stadiums",         flag:"🏟️", count:24 },
     // CONCACAF — hosts
-    { name:"USA",         flag:"🇺🇸", count:14 },
-    { name:"Canada",      flag:"🇨🇦", count:14 },
-    { name:"Mexico",      flag:"🇲🇽", count:14 },
+    { name:"USA",         flag:"🇺🇸", code:"USA", count:20 },
+    { name:"Canada",      flag:"🇨🇦", code:"CAN", count:20 },
+    { name:"Mexico",      flag:"🇲🇽", code:"MEX", count:20 },
     // CONCACAF — qualifiers
-    { name:"Jamaica",     flag:"🇯🇲", count:14 },
-    { name:"Panama",      flag:"🇵🇦", count:14 },
-    { name:"Costa Rica",  flag:"🇨🇷", count:14 },
+    { name:"Jamaica",     flag:"🇯🇲", code:"JAM", count:20 },
+    { name:"Panama",      flag:"🇵🇦", code:"PAN", count:20 },
+    { name:"Costa Rica",  flag:"🇨🇷", code:"CRC", count:20 },
     // CONMEBOL
-    { name:"Argentina",   flag:"🇦🇷", count:14 },
-    { name:"Brazil",      flag:"🇧🇷", count:14 },
-    { name:"Colombia",    flag:"🇨🇴", count:14 },
-    { name:"Uruguay",     flag:"🇺🇾", count:14 },
-    { name:"Ecuador",     flag:"🇪🇨", count:14 },
-    { name:"Paraguay",    flag:"🇵🇾", count:14 },
+    { name:"Argentina",   flag:"🇦🇷", code:"ARG", count:20 },
+    { name:"Brazil",      flag:"🇧🇷", code:"BRA", count:20 },
+    { name:"Colombia",    flag:"🇨🇴", code:"COL", count:20 },
+    { name:"Uruguay",     flag:"🇺🇾", code:"URU", count:20 },
+    { name:"Ecuador",     flag:"🇪🇨", code:"ECU", count:20 },
+    { name:"Paraguay",    flag:"🇵🇾", code:"PAR", count:20 },
     // UEFA
-    { name:"Germany",        flag:"🇩🇪", count:14 },
-    { name:"Spain",          flag:"🇪🇸", count:14 },
-    { name:"France",         flag:"🇫🇷", count:14 },
-    { name:"England",        flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", count:14 },
-    { name:"Portugal",       flag:"🇵🇹", count:14 },
-    { name:"Netherlands",    flag:"🇳🇱", count:14 },
-    { name:"Italy",          flag:"🇮🇹", count:14 },
-    { name:"Belgium",        flag:"🇧🇪", count:14 },
-    { name:"Switzerland",    flag:"🇨🇭", count:14 },
-    { name:"Austria",        flag:"🇦🇹", count:14 },
-    { name:"Denmark",        flag:"🇩🇰", count:14 },
-    { name:"Serbia",         flag:"🇷🇸", count:14 },
-    { name:"Croatia",        flag:"🇭🇷", count:14 },
-    { name:"Turkey",         flag:"🇹🇷", count:14 },
-    { name:"Czech Republic", flag:"🇨🇿", count:14 },
-    { name:"Slovakia",       flag:"🇸🇰", count:14 },
-    { name:"Albania",        flag:"🇦🇱", count:14 },
-    { name:"Greece",         flag:"🇬🇷", count:14 },
+    { name:"Germany",        flag:"🇩🇪", code:"GER", count:20 },
+    { name:"Spain",          flag:"🇪🇸", code:"ESP", count:20 },
+    { name:"France",         flag:"🇫🇷", code:"FRA", count:20 },
+    { name:"England",        flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", code:"ENG", count:20 },
+    { name:"Portugal",       flag:"🇵🇹", code:"POR", count:20 },
+    { name:"Netherlands",    flag:"🇳🇱", code:"NED", count:20 },
+    { name:"Italy",          flag:"🇮🇹", code:"ITA", count:20 },
+    { name:"Belgium",        flag:"🇧🇪", code:"BEL", count:20 },
+    { name:"Switzerland",    flag:"🇨🇭", code:"SUI", count:20 },
+    { name:"Austria",        flag:"🇦🇹", code:"AUT", count:20 },
+    { name:"Denmark",        flag:"🇩🇰", code:"DEN", count:20 },
+    { name:"Serbia",         flag:"🇷🇸", code:"SRB", count:20 },
+    { name:"Croatia",        flag:"🇭🇷", code:"CRO", count:20 },
+    { name:"Turkey",         flag:"🇹🇷", code:"TUR", count:20 },
+    { name:"Czech Republic", flag:"🇨🇿", code:"CZE", count:20 },
+    { name:"Slovakia",       flag:"🇸🇰", code:"SVK", count:20 },
+    { name:"Albania",        flag:"🇦🇱", code:"ALB", count:20 },
+    { name:"Greece",         flag:"🇬🇷", code:"GRE", count:20 },
     // AFC
-    { name:"Japan",        flag:"🇯🇵", count:14 },
-    { name:"South Korea",  flag:"🇰🇷", count:14 },
-    { name:"Iran",         flag:"🇮🇷", count:14 },
-    { name:"Saudi Arabia", flag:"🇸🇦", count:14 },
-    { name:"Australia",    flag:"🇦🇺", count:14 },
-    { name:"Iraq",         flag:"🇮🇶", count:14 },
-    { name:"Jordan",       flag:"🇯🇴", count:14 },
-    { name:"Uzbekistan",   flag:"🇺🇿", count:14 },
+    { name:"Japan",        flag:"🇯🇵", code:"JPN", count:20 },
+    { name:"South Korea",  flag:"🇰🇷", code:"KOR", count:20 },
+    { name:"Iran",         flag:"🇮🇷", code:"IRN", count:20 },
+    { name:"Saudi Arabia", flag:"🇸🇦", code:"KSA", count:20 },
+    { name:"Australia",    flag:"🇦🇺", code:"AUS", count:20 },
+    { name:"Iraq",         flag:"🇮🇶", code:"IRQ", count:20 },
+    { name:"Jordan",       flag:"🇯🇴", code:"JOR", count:20 },
+    { name:"Uzbekistan",   flag:"🇺🇿", code:"UZB", count:20 },
     // CAF
-    { name:"Morocco",        flag:"🇲🇦", count:14 },
-    { name:"Senegal",        flag:"🇸🇳", count:14 },
-    { name:"Nigeria",        flag:"🇳🇬", count:14 },
-    { name:"Cameroon",       flag:"🇨🇲", count:14 },
-    { name:"Egypt",          flag:"🇪🇬", count:14 },
-    { name:"Côte d'Ivoire",  flag:"🇨🇮", count:14 },
-    { name:"Ghana",          flag:"🇬🇭", count:14 },
-    { name:"South Africa",   flag:"🇿🇦", count:14 },
-    { name:"DR Congo",       flag:"🇨🇩", count:14 },
+    { name:"Morocco",        flag:"🇲🇦", code:"MAR", count:20 },
+    { name:"Senegal",        flag:"🇸🇳", code:"SEN", count:20 },
+    { name:"Nigeria",        flag:"🇳🇬", code:"NGA", count:20 },
+    { name:"Cameroon",       flag:"🇨🇲", code:"CMR", count:20 },
+    { name:"Egypt",          flag:"🇪🇬", code:"EGY", count:20 },
+    { name:"Côte d'Ivoire",  flag:"🇨🇮", code:"CIV", count:20 },
+    { name:"Ghana",          flag:"🇬🇭", code:"GHA", count:20 },
+    { name:"South Africa",   flag:"🇿🇦", code:"RSA", count:20 },
+    { name:"DR Congo",       flag:"🇨🇩", code:"COD", count:20 },
     // OFC + playoff
-    { name:"New Zealand",    flag:"🇳🇿", count:14 },
-    { name:"Qualifier (Playoff)", flag:"🌍", count:14 },
+    { name:"New Zealand",    flag:"🇳🇿", code:"NZL", count:20 },
+    { name:"Qualifier (Playoff)", flag:"🌍", code:"PLY", count:20 },
 ];
 
-// Build section lookup: number → { name, flag }
+const ALL_SECTIONS = [FWC_SECTION, ...TEAMS];
+
+// Build section lookup: "CODE-NUM" → { name, flag, code, num }
 const SECTIONS = (() => {
     const map = {};
-    let n = 1;
-    for (const t of TEAMS) {
-        for (let i = 0; i < t.count; i++) {
-            map[n++] = { name: t.name, flag: t.flag };
+    for (const t of ALL_SECTIONS) {
+        for (let i = 1; i <= t.count; i++) {
+            map[`${t.code}-${i}`] = { name: t.name, flag: t.flag, code: t.code, num: i };
         }
-    }
-    // anything beyond the last team section
-    const last = n;
-    for (let i = last; i <= 2000; i++) {
-        map[i] = { name: 'Special / Foil', flag: '✨' };
     }
     return map;
 })();
 
-function sectionOf(num) {
-    return SECTIONS[num] || { name: 'Unknown Section', flag: '❓' };
+const TOTAL_STICKERS = Object.keys(SECTIONS).length;
+
+function stickerKey(code, num) {
+    return `${String(code).trim().toUpperCase()}-${parseInt(num)}`;
+}
+
+function sectionOf(code, num) {
+    return SECTIONS[stickerKey(code, num)] || { name: 'Unknown Section', flag: '❓', code: String(code).toUpperCase(), num: parseInt(num) };
 }
 
 // ╔══════════════════════════════════════════════════════╗
@@ -543,9 +550,8 @@ function sectionOf(num) {
 // ╚══════════════════════════════════════════════════════╝
 function load() {
     try {
-        const d = JSON.parse(localStorage.getItem('panini2026v2') || '{}');
+        const d = JSON.parse(localStorage.getItem('panini2026v3') || '{}');
         S.apiKey        = d.apiKey || '';
-        S.totalStickers = d.total  || 720;
         S.missing       = d.missing || {};
         S.found         = d.found   || {};
         S.history       = d.history || [];
@@ -553,9 +559,8 @@ function load() {
 }
 function save() {
     try {
-        localStorage.setItem('panini2026v2', JSON.stringify({
+        localStorage.setItem('panini2026v3', JSON.stringify({
             apiKey:  S.apiKey,
-            total:   S.totalStickers,
             missing: S.missing,
             found:   S.found,
             history: S.history.slice(0, 50),
@@ -568,9 +573,9 @@ function save() {
 // ╚══════════════════════════════════════════════════════╝
 function updateProgress() {
     const foundCount = Object.keys(S.found).length;
-    const pct = S.totalStickers > 0 ? Math.round(foundCount / S.totalStickers * 100) : 0;
+    const pct = TOTAL_STICKERS > 0 ? Math.round(foundCount / TOTAL_STICKERS * 100) : 0;
     document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressLabel').textContent = `${foundCount} / ${S.totalStickers} (${pct}%)`;
+    document.getElementById('progressLabel').textContent = `${foundCount} / ${TOTAL_STICKERS} (${pct}%)`;
 }
 
 function updateBadge() {
@@ -698,25 +703,27 @@ async function analyseImage(b64, dataUrl) {
                             type: 'text',
                             text: `You are analysing a page from a Panini FIFA World Cup 2026 sticker album.
 
+IMPORTANT: stickers in this album are NOT numbered with a single global number. Each sticker slot is labelled with a 3-letter CODE plus a number, e.g. "RSA 11", "RSA 15", "USA 5". The code is a country code for team pages, or "FWC" for the trophy/intro/host-stadium pages. The code and number are usually printed together below, above, or beside the slot frame (sometimes the code is printed once for the whole page/team and the number is per-slot).
+
 Look carefully at every sticker slot on this page and identify:
 1. EMPTY slots — blank spaces where a sticker should be but is missing
 2. FILLED slots — slots that already have a sticker in them
-3. The sticker NUMBER for each slot (usually printed below, above, or beside the slot frame)
+3. The CODE and NUMBER printed for each slot
 4. The player name or description visible on filled stickers, if legible
 
 Return ONLY valid JSON — no markdown, no prose, no code blocks — with exactly this structure:
 {
   "pageDescription": "Short description of which team/section this page covers",
   "missingStickers": [
-    { "number": 123, "description": "Player / sticker description if visible, else empty string" }
+    { "code": "RSA", "number": 11, "description": "Player / sticker description if visible, else empty string" }
   ],
   "foundStickers": [
-    { "number": 124, "description": "Player / sticker description if visible, else empty string" }
+    { "code": "RSA", "number": 15, "description": "Player / sticker description if visible, else empty string" }
   ],
   "notes": "Optional observation about image quality or anything unusual"
 }
 
-If a number is unreadable use 0.  If this is not a sticker album page return { "error": "Not a sticker album page" }.`
+If a number is unreadable use 0. If a code is unreadable use an empty string. If this is not a sticker album page return { "error": "Not a sticker album page" }.`
                         }
                     ]
                 }]
@@ -758,21 +765,21 @@ If a number is unreadable use 0.  If this is not a sticker album page return { "
 }
 
 function displayResult(result, dataUrl) {
-    const missing = (result.missingStickers || []).filter(s => s.number > 0);
-    const found   = (result.foundStickers   || []).filter(s => s.number > 0);
+    const missing = (result.missingStickers || []).filter(s => s.code && s.number > 0);
+    const found   = (result.foundStickers   || []).filter(s => s.code && s.number > 0);
 
     // Update state
     const newMiss = [];
     missing.forEach(s => {
-        const k = String(s.number);
+        const k = stickerKey(s.code, s.number);
         if (!S.found[k]) {
-            if (!S.missing[k]) newMiss.push(s.number);
-            S.missing[k] = { section: sectionOf(s.number).name, description: s.description || '', addedAt: Date.now() };
+            if (!S.missing[k]) newMiss.push(k);
+            S.missing[k] = { code: s.code.toUpperCase(), num: s.number, section: sectionOf(s.code, s.number).name, description: s.description || '', addedAt: Date.now() };
         }
     });
     found.forEach(s => {
-        const k = String(s.number);
-        S.found[k] = { section: sectionOf(s.number).name, description: s.description || '', foundAt: Date.now() };
+        const k = stickerKey(s.code, s.number);
+        S.found[k] = { code: s.code.toUpperCase(), num: s.number, section: sectionOf(s.code, s.number).name, description: s.description || '', foundAt: Date.now() };
         delete S.missing[k];
     });
 
@@ -780,8 +787,8 @@ function displayResult(result, dataUrl) {
     S.history.unshift({
         ts:          new Date().toISOString(),
         description: result.pageDescription || 'Album page',
-        missList:    missing.map(s => s.number),
-        foundList:   found.map(s => s.number),
+        missList:    missing.map(s => stickerKey(s.code, s.number)),
+        foundList:   found.map(s => stickerKey(s.code, s.number)),
     });
 
     save();
@@ -798,19 +805,19 @@ function displayResult(result, dataUrl) {
     if (missing.length > 0) {
         html += `<div class="section-label label-miss">❌ Missing (${missing.length})</div>
         <div class="chip-row">
-            ${missing.map(s => `<span class="chip chip-miss" title="${s.description}">#${s.number}</span>`).join('')}
+            ${missing.map(s => `<span class="chip chip-miss" title="${s.description}">${s.code.toUpperCase()} ${s.number}</span>`).join('')}
         </div>`;
     }
 
     if (found.length > 0) {
         html += `<div class="section-label label-have" style="margin-top:${missing.length?10:0}px">✅ Collected (${found.length})</div>
         <div class="chip-row">
-            ${found.map(s => `<span class="chip chip-have" title="${s.description}">#${s.number}</span>`).join('')}
+            ${found.map(s => `<span class="chip chip-have" title="${s.description}">${s.code.toUpperCase()} ${s.number}</span>`).join('')}
         </div>`;
     }
 
     if (!missing.length && !found.length) {
-        html += `<p style="font-size:13px;color:var(--muted)">No sticker numbers detected. Try a clearer photo with good lighting.</p>`;
+        html += `<p style="font-size:13px;color:var(--muted)">No sticker codes/numbers detected. Try a clearer photo with good lighting.</p>`;
     }
 
     html += '</div>';
@@ -823,35 +830,44 @@ function displayResult(result, dataUrl) {
 // ╔══════════════════════════════════════════════════════╗
 // ║  MANUAL INPUT                                        ║
 // ╚══════════════════════════════════════════════════════╝
+function readCodeNum(codeId, numId) {
+    const code = document.getElementById(codeId).value.trim().toUpperCase();
+    const num  = parseInt(document.getElementById(numId).value);
+    if (!code || !/^[A-Z]{3}$/.test(code) || !num || num < 1) return null;
+    return { code, num };
+}
+
 function addMissing() {
-    const v = parseInt(document.getElementById('missInput').value);
-    if (!v || v < 1) { toast('Enter a valid sticker number', 'err'); return; }
-    const k = String(v);
-    if (S.missing[k]) { toast(`#${v} already in missing list`, 'inf'); }
-    else if (S.found[k]) { toast(`#${v} is already in your collection`, 'inf'); }
+    const v = readCodeNum('missCode', 'missNum');
+    if (!v) { toast('Enter a valid code (e.g. RSA) and number', 'err'); return; }
+    const k = stickerKey(v.code, v.num);
+    if (S.missing[k]) { toast(`${v.code} ${v.num} already in missing list`, 'inf'); }
+    else if (S.found[k]) { toast(`${v.code} ${v.num} is already in your collection`, 'inf'); }
     else {
-        S.missing[k] = { section: sectionOf(v).name, description: '', addedAt: Date.now() };
+        S.missing[k] = { code: v.code, num: v.num, section: sectionOf(v.code, v.num).name, description: '', addedAt: Date.now() };
         save(); updateProgress(); updateBadge();
-        toast(`Sticker #${v} added to missing list`, 'inf');
+        toast(`Sticker ${v.code} ${v.num} added to missing list`, 'inf');
     }
-    document.getElementById('missInput').value = '';
+    document.getElementById('missCode').value = '';
+    document.getElementById('missNum').value  = '';
 }
 
 function markGot() {
-    const v = parseInt(document.getElementById('gotInput').value);
-    if (!v || v < 1) { toast('Enter a valid sticker number', 'err'); return; }
-    doMarkFound(v);
-    document.getElementById('gotInput').value = '';
+    const v = readCodeNum('gotCode', 'gotNum');
+    if (!v) { toast('Enter a valid code (e.g. RSA) and number', 'err'); return; }
+    doMarkFound(v.code, v.num);
+    document.getElementById('gotCode').value = '';
+    document.getElementById('gotNum').value  = '';
 }
 
-function doMarkFound(num) {
-    const k = String(num);
-    const sec = sectionOf(num);
-    S.found[k] = { section: sec.name, description: S.missing[k]?.description || '', foundAt: Date.now() };
+function doMarkFound(code, num) {
+    const k = stickerKey(code, num);
+    const sec = sectionOf(code, num);
+    S.found[k] = { code: sec.code, num, section: sec.name, description: S.missing[k]?.description || '', foundAt: Date.now() };
     delete S.missing[k];
     save(); updateProgress(); updateBadge();
     renderMissing();
-    toast(`Sticker #${num} — got it! 🎉`, 'ok');
+    toast(`Sticker ${sec.code} ${num} — got it! 🎉`, 'ok');
 }
 
 // ╔══════════════════════════════════════════════════════╗
@@ -870,13 +886,20 @@ function renderMissing() {
     }
     empty.style.display = 'none';
 
-    // Group by section
+    // Group by section, sort within group by sticker number
+    const sorted = keys.slice().sort((a, b) => {
+        const ma = S.missing[a], mb = S.missing[b];
+        if (ma.code !== mb.code) return ma.code.localeCompare(mb.code);
+        return ma.num - mb.num;
+    });
+
     const groups = {};
-    keys.map(k => parseInt(k)).sort((a,b)=>a-b).forEach(num => {
-        const sec = S.missing[String(num)]?.section || sectionOf(num).name;
-        const flag = sectionOf(num).flag;
+    sorted.forEach(k => {
+        const meta = S.missing[k];
+        const sec  = meta.section || sectionOf(meta.code, meta.num).name;
+        const flag = sectionOf(meta.code, meta.num).flag;
         if (!groups[sec]) groups[sec] = { flag, stickers: [] };
-        groups[sec].stickers.push(num);
+        groups[sec].stickers.push(k);
     });
 
     container.innerHTML = Object.entries(groups).map(([sec, g]) => `
@@ -886,15 +909,15 @@ function renderMissing() {
                 <span class="group-badge">${g.stickers.length}</span>
             </div>
             <div class="group-items open">
-                ${g.stickers.map(num => {
-                    const meta = S.missing[String(num)] || {};
+                ${g.stickers.map(k => {
+                    const meta = S.missing[k] || {};
                     return `<div class="sticker-row">
-                        <div class="sticker-num">#${num}</div>
+                        <div class="sticker-num">${meta.code} ${meta.num}</div>
                         <div class="sticker-info">
                             <div class="sticker-name">${meta.description || sec + ' sticker'}</div>
                             <div class="sticker-sect">${sec}</div>
                         </div>
-                        <button class="got-btn" onclick="doMarkFound(${num})" title="Mark as found">✓</button>
+                        <button class="got-btn" onclick="doMarkFound('${meta.code}', ${meta.num})" title="Mark as found">✓</button>
                     </div>`;
                 }).join('')}
             </div>
@@ -903,9 +926,14 @@ function renderMissing() {
 }
 
 function copyMissingList() {
-    const nums = Object.keys(S.missing).map(Number).sort((a,b)=>a-b);
-    if (nums.length === 0) { toast('No missing stickers to copy', 'inf'); return; }
-    const text = `Panini WC 2026 — Missing stickers (${nums.length}):\n${nums.join(', ')}`;
+    const keys = Object.keys(S.missing).sort((a, b) => {
+        const ma = S.missing[a], mb = S.missing[b];
+        if (ma.code !== mb.code) return ma.code.localeCompare(mb.code);
+        return ma.num - mb.num;
+    });
+    if (keys.length === 0) { toast('No missing stickers to copy', 'inf'); return; }
+    const labels = keys.map(k => `${S.missing[k].code} ${S.missing[k].num}`);
+    const text = `Panini WC 2026 — Missing stickers (${keys.length}):\n${labels.join(', ')}`;
     navigator.clipboard.writeText(text).then(
         () => toast('Copied to clipboard!', 'ok'),
         () => toast('Copy failed — try again', 'err')
@@ -941,19 +969,16 @@ function renderHistory() {
 // ╚══════════════════════════════════════════════════════╝
 function openSettings() {
     document.getElementById('apiKeyField').value = S.apiKey;
-    document.getElementById('totalField').value  = S.totalStickers;
+    document.getElementById('totalDisplay').textContent = `${TOTAL_STICKERS} stickers across ${ALL_SECTIONS.length} sections`;
     document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings() { document.getElementById('settingsOverlay').classList.remove('open'); }
 function overlayClick(e) { if (e.target === e.currentTarget) closeSettings(); }
 
 function saveSettings() {
-    const key   = document.getElementById('apiKeyField').value.trim();
-    const total = parseInt(document.getElementById('totalField').value) || 720;
-    S.apiKey        = key;
-    S.totalStickers = total;
+    const key = document.getElementById('apiKeyField').value.trim();
+    S.apiKey  = key;
     save();
-    updateProgress();
     document.getElementById('apiWarning').style.display = key ? 'none' : 'block';
     closeSettings();
     toast('Settings saved', 'ok');
@@ -970,12 +995,17 @@ function confirmClear() {
 // ╔══════════════════════════════════════════════════════╗
 // ║  KEYBOARD SHORTCUTS (manual inputs)                  ║
 // ╚══════════════════════════════════════════════════════╝
-document.getElementById('missInput').addEventListener('keypress', e => { if(e.key==='Enter') addMissing(); });
-document.getElementById('gotInput').addEventListener('keypress',  e => { if(e.key==='Enter') markGot(); });
+['missCode', 'missNum'].forEach(id =>
+    document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') addMissing(); }));
+['gotCode', 'gotNum'].forEach(id =>
+    document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') markGot(); }));
 
 // ╔══════════════════════════════════════════════════════╗
 // ║  BOOT                                                ║
 // ╚══════════════════════════════════════════════════════╝
+document.getElementById('codeList').innerHTML =
+    ALL_SECTIONS.map(t => `<option value="${t.code}">${t.flag} ${t.name}</option>`).join('');
+
 load();
 updateProgress();
 updateBadge();
