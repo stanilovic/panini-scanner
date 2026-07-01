@@ -122,6 +122,7 @@
             animation: pulse 2.2s infinite;
         }
         .capture-btn:active { transform: scale(.93); }
+        .capture-btn:disabled { opacity: .45; cursor: not-allowed; animation: none; }
         @keyframes pulse {
             0%   { box-shadow: 0 0 0 0 rgba(255,215,0,.45); }
             70%  { box-shadow: 0 0 0 14px rgba(255,215,0,0); }
@@ -321,8 +322,11 @@
     <!-- Camera controls (visible while live) -->
     <div class="cam-controls" id="camControls">
         <button class="btn btn-ghost btn-sm" onclick="flipCamera()">🔄 Flip</button>
-        <button class="capture-btn" onclick="captureFrame()" title="Scan page">📸</button>
+        <button class="capture-btn" id="captureBtn" onclick="captureFrame()" title="Scan page">📸</button>
         <button class="btn btn-ghost btn-sm" onclick="stopCamera()">✕ Stop</button>
+    </div>
+    <div id="camHint" style="display:none; text-align:center; font-size:11px; color:var(--muted); margin:-6px 0 10px">
+        Camera stays on — tap 📸 again for the next page
     </div>
 
     <!-- Start camera button (visible when idle) -->
@@ -338,10 +342,6 @@
         </div>
 
         <div id="resultContent"></div>
-
-        <button class="btn btn-ghost" id="scanAgainBtn" onclick="resetToCamera()" style="display:none; margin-top:8px">
-            📷 Scan Another Page
-        </button>
     </div>
 
     <!-- Manual input -->
@@ -622,8 +622,8 @@ async function startCamera() {
         document.getElementById('camPlaceholder').style.display = 'none';
         document.getElementById('camOverlay').style.display  = 'block';
         document.getElementById('camControls').style.display = 'flex';
+        document.getElementById('camHint').style.display     = 'block';
         document.getElementById('startBtn').style.display    = 'none';
-        document.getElementById('resultArea').style.display  = 'none';
     } catch(e) {
         toast('Camera access denied — use manual input', 'err');
     }
@@ -636,6 +636,7 @@ function stopCamera() {
     document.getElementById('camPlaceholder').style.display = 'flex';
     document.getElementById('camOverlay').style.display     = 'none';
     document.getElementById('camControls').style.display    = 'none';
+    document.getElementById('camHint').style.display        = 'none';
     document.getElementById('startBtn').style.display       = 'block';
 }
 
@@ -645,6 +646,9 @@ async function flipCamera() {
 }
 
 function captureFrame() {
+    const captureBtn = document.getElementById('captureBtn');
+    if (captureBtn.disabled) return; // already analysing a page
+
     const v = document.getElementById('camVideo');
     const cvs = document.getElementById('cvs');
     cvs.width  = v.videoWidth;
@@ -654,34 +658,29 @@ function captureFrame() {
     const b64     = dataUrl.split(',')[1];
 
     document.getElementById('capturedImg').src = dataUrl;
-    document.getElementById('resultArea').style.display  = 'block';
-    document.getElementById('scanAgainBtn').style.display = 'none';
+    document.getElementById('resultArea').style.display = 'block';
     document.getElementById('resultContent').innerHTML   = '';
-    stopCamera();
+    // Camera stays live so the next page can be captured immediately
     analyseImage(b64, dataUrl);
-}
-
-function resetToCamera() {
-    document.getElementById('resultArea').style.display = 'none';
-    startCamera();
 }
 
 // ╔══════════════════════════════════════════════════════╗
 // ║  AI ANALYSIS                                         ║
 // ╚══════════════════════════════════════════════════════╝
 async function analyseImage(b64, dataUrl) {
-    const loading = document.getElementById('loadingIndicator');
-    const content = document.getElementById('resultContent');
+    const loading    = document.getElementById('loadingIndicator');
+    const content    = document.getElementById('resultContent');
+    const captureBtn = document.getElementById('captureBtn');
 
     if (!S.apiKey) {
         content.innerHTML = `<div class="card">
             <div class="card-title">⚠️ API Key Missing</div>
             <p style="font-size:13px;color:var(--muted)">Open ⚙️ Settings to add your Anthropic API key. Until then you can add missing stickers manually below.</p>
         </div>`;
-        document.getElementById('scanAgainBtn').style.display = 'block';
         return;
     }
 
+    captureBtn.disabled = true;
     loading.style.display = 'flex';
 
     try {
@@ -764,7 +763,7 @@ If a number is unreadable use 0. If a code is unreadable use an empty string. If
         </div>`;
     } finally {
         loading.style.display = 'none';
-        document.getElementById('scanAgainBtn').style.display = 'block';
+        captureBtn.disabled = false;
     }
 }
 
