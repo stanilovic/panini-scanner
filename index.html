@@ -890,18 +890,23 @@ function renderMissing() {
     }
     empty.style.display = 'none';
 
-    // Group by section, sort within group by sticker number
+    // Sort by album order (ALL_SECTIONS index), then by sticker number within team
+    const albumIndex = {};
+    ALL_SECTIONS.forEach((t, i) => { albumIndex[t.code] = i; });
+
     const sorted = keys.slice().sort((a, b) => {
         const ma = S.missing[a], mb = S.missing[b];
-        if (ma.code !== mb.code) return ma.code.localeCompare(mb.code);
+        const ia = albumIndex[ma.code] ?? 999, ib = albumIndex[mb.code] ?? 999;
+        if (ia !== ib) return ia - ib;
         return ma.num - mb.num;
     });
 
     const groups = {};
     sorted.forEach(k => {
         const meta = S.missing[k];
-        const sec  = meta.section || sectionOf(meta.code, meta.num).name;
-        const flag = sectionOf(meta.code, meta.num).flag;
+        const info = sectionOf(meta.code, meta.num);
+        const sec  = info.name;
+        const flag = info.flag;
         if (!groups[sec]) groups[sec] = { flag, stickers: [] };
         groups[sec].stickers.push(k);
     });
@@ -930,9 +935,12 @@ function renderMissing() {
 }
 
 function copyMissingList() {
+    const albumIndex = {};
+    ALL_SECTIONS.forEach((t, i) => { albumIndex[t.code] = i; });
     const keys = Object.keys(S.missing).sort((a, b) => {
         const ma = S.missing[a], mb = S.missing[b];
-        if (ma.code !== mb.code) return ma.code.localeCompare(mb.code);
+        const ia = albumIndex[ma.code] ?? 999, ib = albumIndex[mb.code] ?? 999;
+        if (ia !== ib) return ia - ib;
         return ma.num - mb.num;
     });
     if (keys.length === 0) { toast('No missing stickers to copy', 'inf'); return; }
